@@ -9,9 +9,9 @@ RUN go env -w CGO_ENABLED=0 && \
 #
 #go env -w GOPROXY=http://mirrors.sangfor.org/nexus/repository/go-proxy-group
 #
-
+ARG VERSION=v1.0.0
 RUN go mod tidy 
-RUN go build -ldflags="-s -w" -o client-manager *.go
+RUN go build -ldflags="-s -w -X 'main.SoftwareVer=$VERSION'" -o client-manager *.go
 RUN chmod 755 client-manager
 
 FROM alpine:3.21 AS runtime

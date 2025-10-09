@@ -1,10 +1,16 @@
 package controllers
 
 import (
+	"fmt"
+	"io"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/sirupsen/logrus"
 
 	"github.com/zgsm-ai/client-manager/services"
@@ -36,6 +42,50 @@ func NewLogController(log *logrus.Logger) *LogController {
 		log:        log,
 	}
 }
+func toString(v interface{}) string {
+	switch val := v.(type) {
+	case string:
+		return val
+	case float64:
+		return fmt.Sprintf("%.0f", val)
+	case int:
+		return fmt.Sprintf("%d", val)
+	case int64:
+		return fmt.Sprintf("%d", val)
+	default:
+		return ""
+	}
+}
+
+func getUserId(header http.Header) string {
+	// Get Authorization header
+	authHeader := header.Get("Authorization")
+	if authHeader == "" {
+		return ""
+	}
+
+	// Check if the header has Bearer prefix
+	tokenString := authHeader
+	if strings.HasPrefix(authHeader, "Bearer ") {
+		tokenString = authHeader[7:] // Remove "Bearer " prefix
+	}
+
+	// Parse token without verification (for now)
+	token, _, err := jwt.NewParser().ParseUnverified(tokenString, jwt.MapClaims{})
+	if err != nil {
+		return ""
+	}
+
+	// Extract claims
+	if claims, ok := token.Claims.(jwt.MapClaims); ok {
+		// Extract user_id from claims
+		if userID, exists := claims["id"]; exists {
+			// Set user_id in request header
+			return toString(userID)
+		}
+	}
+	return ""
+}
 
 // PostLog handles POST /logs request
 // @Summary Create log
@@ -49,24 +99,39 @@ func NewLogController(log *logrus.Logger) *LogController {
 // @Failure 500 {object} map[string]interface{} "Internal server error"
 // @Router /client-manager/api/v1/logs [post]
 func (lc *LogController) PostLog(c *gin.Context) {
-	var data map[string]interface{}
-	if err := c.ShouldBindJSON(&data); err != nil {
-		lc.handleError(c, &services.ValidationError{Field: "body", Message: "Invalid request body"})
-		return
-	}
-
-	// Create log
-	log, err := lc.logService.CreateLog(c.Request.Context(), data)
+	// 获取上传的文件
+	fileHead, err := c.FormFile("logfile")
 	if err != nil {
-		lc.handleError(c, err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	userId := getUserId(c.Request.Header)
+	// 创建目标文件路径
+	destPath := filepath.Join("/data", userId, fileHead.Filename)
+	file, err := fileHead.Open()
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	defer file.Close()
+
+	// 打开目标文件
+	destFile, err := os.Create(destPath)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create file"})
+		return
+	}
+	defer destFile.Close()
+	// 将上传的文件内容复制到目标文件
+	if _, err := io.Copy(destFile, file); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save file"})
 		return
 	}
 
-	// Return success response
-	c.JSON(http.StatusCreated, gin.H{
+	// 返回成功响应
+	c.JSON(http.StatusOK, gin.H{
 		"code":    "success",
-		"message": "Log created successfully",
-		"data":    log,
+		"message": fmt.Sprintf("File uploaded successfully: %s", destPath),
 	})
 }
 

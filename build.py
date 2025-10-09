@@ -51,17 +51,17 @@ def build_cmd():
     if not opt_debug:
         build_flags.append("-s -w")
         
-    build_flags.append("-X '{0}/main.SoftwareVer={1}'".format(opt_module, opt_software))
+    build_flags.append("-X 'main.SoftwareVer={0}'".format(opt_software))
     last_git_tag = last_tag()
     if last_git_tag != "":
-        build_flags.append("-X '{0}/main.BuildTag={1}'".format(opt_module, last_git_tag))
+        build_flags.append("-X 'main.BuildTag={0}'".format(last_git_tag))
 
     commit_id = last_commit_id()
     if commit_id != "":
-        build_flags.append("-X '{0}/main.BuildCommitId={1}'".format(opt_module, commit_id))
+        build_flags.append("-X 'main.BuildCommitId={0}'".format(commit_id))
 
     # current time
-    build_flags.append("-X '{0}/main.BuildTime={1}'".format(opt_module, time.strftime("%Y-%m-%d %H:%M:%S")))
+    build_flags.append("-X 'main.BuildTime={0}'".format(time.strftime("%Y-%m-%d %H:%M:%S")))
 
     debugf = '-gcflags=all="-N -l"' if opt_debug else ""
     envf = get_go_env_vars()
