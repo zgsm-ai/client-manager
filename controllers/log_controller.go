@@ -1,0 +1,239 @@
+package controllers
+
+import (
+	"net/http"
+	"strconv"
+
+	"github.com/gin-gonic/gin"
+	"github.com/sirupsen/logrus"
+
+	"github.com/zgsm-ai/client-manager/services"
+)
+
+/**
+ * LogController handles HTTP requests for log operations
+ * @description
+ * - Implements RESTful API endpoints for log management
+ * - Handles request validation and response formatting
+ * - Integrates with LogService for business logic
+ */
+type LogController struct {
+	logService *services.LogService
+	log        *logrus.Logger
+}
+
+/**
+ * NewLogController creates a new LogController instance
+ * @param {logrus.Logger} log - Logger instance
+ * @returns {*LogController} New LogController instance
+ */
+func NewLogController(log *logrus.Logger) *LogController {
+	// Initialize DAOs and services here
+	logService := services.NewLogService(nil, log) // Will be properly initialized later
+
+	return &LogController{
+		logService: logService,
+		log:        log,
+	}
+}
+
+// PostLog handles POST /logs request
+// @Summary Create log
+// @Description Create a new log record
+// @Tags Log
+// @Accept json
+// @Produce json
+// @Param log body map[string]interface{} true "Log data"
+// @Success 201 {object} map[string]interface{} "Created log"
+// @Failure 400 {object} map[string]interface{} "Invalid parameters"
+// @Failure 500 {object} map[string]interface{} "Internal server error"
+// @Router /client-manager/api/v1/logs [post]
+func (lc *LogController) PostLog(c *gin.Context) {
+	var data map[string]interface{}
+	if err := c.ShouldBindJSON(&data); err != nil {
+		lc.handleError(c, &services.ValidationError{Field: "body", Message: "Invalid request body"})
+		return
+	}
+
+	// Create log
+	log, err := lc.logService.CreateLog(c.Request.Context(), data)
+	if err != nil {
+		lc.handleError(c, err)
+		return
+	}
+
+	// Return success response
+	c.JSON(http.StatusCreated, gin.H{
+		"code":    "success",
+		"message": "Log created successfully",
+		"data":    log,
+	})
+}
+
+// GetLogsByClient handles GET /logs/client/{client_id} request
+// @Summary Get logs by client
+// @Description Retrieve logs for a specific client with pagination
+// @Tags Log
+// @Accept json
+// @Produce json
+// @Param client_id path string true "Client ID"
+// @Param page query int false "Page number" default(1)
+// @Param page_size query int false "Number of items per page" default(20)
+// @Success 200 {object} map[string]interface{} "Logs list with pagination"
+// @Failure 400 {object} map[string]interface{} "Invalid parameters"
+// @Failure 500 {object} map[string]interface{} "Internal server error"
+// @Router /client-manager/api/v1/logs/client/{client_id} [get]
+func (lc *LogController) GetLogsByClient(c *gin.Context) {
+	// Get path parameter
+	clientID := c.Param("client_id")
+
+	// Get and validate pagination parameters
+	page, err := strconv.Atoi(c.DefaultQuery("page", "1"))
+	if err != nil || page < 1 {
+		page = 1
+	}
+
+	pageSize, err := strconv.Atoi(c.DefaultQuery("page_size", "20"))
+	if err != nil || pageSize < 1 || pageSize > 100 {
+		pageSize = 20
+	}
+
+	// Get logs by client
+	response, err := lc.logService.GetLogsByClient(c.Request.Context(), clientID, page, pageSize)
+	if err != nil {
+		lc.handleError(c, err)
+		return
+	}
+
+	// Return success response
+	c.JSON(http.StatusOK, gin.H{
+		"code":    "success",
+		"message": "Logs retrieved successfully by client",
+		"data":    response,
+	})
+}
+
+// GetLogsByUser handles GET /logs/user/{user_id} request
+// @Summary Get logs by user
+// @Description Retrieve logs for a specific user with pagination
+// @Tags Log
+// @Accept json
+// @Produce json
+// @Param user_id path string true "User ID"
+// @Param page query int false "Page number" default(1)
+// @Param page_size query int false "Number of items per page" default(20)
+// @Success 200 {object} map[string]interface{} "Logs list with pagination"
+// @Failure 400 {object} map[string]interface{} "Invalid parameters"
+// @Failure 500 {object} map[string]interface{} "Internal server error"
+// @Router /client-manager/api/v1/logs/user/{user_id} [get]
+func (lc *LogController) GetLogsByUser(c *gin.Context) {
+	// Get path parameter
+	userID := c.Param("user_id")
+
+	// Get and validate pagination parameters
+	page, err := strconv.Atoi(c.DefaultQuery("page", "1"))
+	if err != nil || page < 1 {
+		page = 1
+	}
+
+	pageSize, err := strconv.Atoi(c.DefaultQuery("page_size", "20"))
+	if err != nil || pageSize < 1 || pageSize > 100 {
+		pageSize = 20
+	}
+
+	// Get logs by user
+	response, err := lc.logService.GetLogsByUser(c.Request.Context(), userID, page, pageSize)
+	if err != nil {
+		lc.handleError(c, err)
+		return
+	}
+
+	// Return success response
+	c.JSON(http.StatusOK, gin.H{
+		"code":    "success",
+		"message": "Logs retrieved successfully by user",
+		"data":    response,
+	})
+}
+
+// GetLogStats handles GET /logs/stats request
+// @Summary Get log statistics
+// @Description Retrieve log statistics for a given time period
+// @Tags Log
+// @Accept json
+// @Produce json
+// @Param start_date query string true "Start date (YYYY-MM-DD)"
+// @Param end_date query string true "End date (YYYY-MM-DD)"
+// @Success 200 {object} map[string]interface{} "Log statistics"
+// @Failure 400 {object} map[string]interface{} "Invalid parameters"
+// @Failure 500 {object} map[string]interface{} "Internal server error"
+// @Router /client-manager/api/v1/logs/stats [get]
+func (lc *LogController) GetLogStats(c *gin.Context) {
+	// Get query parameters
+	startDate := c.Query("start_date")
+	endDate := c.Query("end_date")
+
+	// Get log statistics
+	stats, err := lc.logService.GetLogStats(c.Request.Context(), startDate, endDate)
+	if err != nil {
+		lc.handleError(c, err)
+		return
+	}
+
+	// Return success response
+	c.JSON(http.StatusOK, gin.H{
+		"code":    "success",
+		"message": "Log statistics retrieved successfully",
+		"data":    stats,
+	})
+}
+
+/**
+ * handleError handles errors and returns appropriate HTTP responses
+ * @param {gin.Context} c - Gin context
+ * @param {error} err - Error to handle
+ * @description
+ * - Maps different error types to appropriate HTTP status codes
+ * - Returns standardized error response format
+ * - Logs errors for debugging
+ */
+func (lc *LogController) handleError(c *gin.Context, err error) {
+	// Log error
+	lc.log.WithError(err).Error("Request processing failed")
+
+	// Handle different error types
+	switch e := err.(type) {
+	case *services.ValidationError:
+		c.JSON(http.StatusBadRequest, gin.H{
+			"code":    "validation.error",
+			"message": e.Message,
+			"field":   e.Field,
+		})
+	case *services.ConflictError:
+		c.JSON(http.StatusConflict, gin.H{
+			"code":    "conflict.error",
+			"message": e.Message,
+		})
+	case *services.NotFoundError:
+		c.JSON(http.StatusNotFound, gin.H{
+			"code":    "notfound.error",
+			"message": e.Message,
+		})
+	default:
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"code":    "internal.error",
+			"message": "Internal server error",
+		})
+	}
+}
+
+/**
+ * SetLogService sets the log service (used for dependency injection)
+ * @param {services.LogService} logService - Log service instance
+ * @description
+ * - Allows setting the log service after controller creation
+ * - Used for proper dependency injection
+ */
+func (lc *LogController) SetLogService(logService *services.LogService) {
+	lc.logService = logService
+}
