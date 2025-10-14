@@ -43,14 +43,6 @@ func PrintVersions() {
 // @in header
 // @name Authorization
 
-func init() {
-	// Initialize configuration
-	if err := internal.InitConfig(rootCmd); err != nil {
-		fmt.Printf("Failed to initialize configuration: %v\n", err)
-		os.Exit(1)
-	}
-}
-
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "client-manager",
@@ -63,74 +55,72 @@ var rootCmd = &cobra.Command{
 			fmt.Printf("Failed to load configuration: %v\n", err)
 			os.Exit(1)
 		}
+		// Apply command line overrides
+		internal.ApplyConfig()
 
 		// Initialize application
-		appContext, err := services.InitializeApp()
+		app, err := services.InitializeApp()
 		if err != nil {
 			fmt.Printf("Failed to initialize application: %v\n", err)
 			os.Exit(1)
 		}
 
-		// Apply command line overrides
-		internal.ApplyConfig(appContext.Logger)
-
 		// Initialize controllers
-		configController := controllers.NewConfigController(appContext.Logger)
-		configController.SetConfigService(appContext.ConfigService)
+		configController := controllers.NewConfigController(app.Logger)
+		configController.SetConfigService(app.ConfigService)
 
-		feedbackController := controllers.NewFeedbackController(appContext.Logger)
-		feedbackController.SetFeedbackService(appContext.FeedbackService)
+		feedbackController := controllers.NewFeedbackController(app.Logger)
+		feedbackController.SetFeedbackService(app.FeedbackService)
 
-		logController := controllers.NewLogController(appContext.Logger)
-		logController.SetLogService(appContext.LogService)
+		logController := controllers.NewLogController(app.Logger)
+		logController.SetLogService(app.LogService)
 
 		// Create Gin engine
 		r := gin.Default()
 
 		// Setup all routes
-		router.SetupRoutes(r, configController, feedbackController, logController, appContext.Logger)
-
-		// Setup graceful shutdown
-		setupGracefulShutdown(appContext)
+		router.SetupRoutes(r, configController, feedbackController, logController, app.Logger)
 
 		// Start server
-		if err := services.StartServer(r, appContext.Logger); err != nil {
-			appContext.Logger.Fatalf("Failed to start server: %v", err)
+		if err := services.StartServer(r, app.Logger); err != nil {
+			app.Logger.Fatalf("Failed to start server: %v", err)
 		}
+		gracefulShutdown(app)
 	},
 }
 
-// setupGracefulShutdown sets up graceful shutdown handlers
+func init() {
+	internal.InitFlags(rootCmd)
+}
+
+// gracefulShutdown sets up graceful shutdown handlers
 /**
 * Setup graceful shutdown handlers
-* @param {*services.AppContext} appContext - Application context containing database and Redis connections
+* @param {*services.AppContext} app - Application context containing database and Redis connections
 * @description
 * - Sets up signal handlers for SIGINT and SIGTERM
 * - Closes database and Redis connections gracefully
 * - Logs shutdown process
  */
-func setupGracefulShutdown(appContext *services.AppContext) {
-	// Note: In a real implementation, you would use signal.Notify to handle SIGINT and SIGTERM
-	// For now, we'll add a defer statement to ensure cleanup on normal exit
-	defer func() {
-		appContext.Logger.Info("Shutting down application...")
+func gracefulShutdown(app *services.AppContext) {
+	app.Logger.Info("Shutting down application...")
 
-		// Close database connection
-		if err := internal.CloseDB(); err != nil {
-			appContext.Logger.WithError(err).Error("Failed to close database connection")
-		} else {
-			appContext.Logger.Info("Database connection closed successfully")
-		}
+	// Close database connection
+	if err := internal.CloseDB(); err != nil {
+		app.Logger.WithError(err).Error("Failed to close database connection")
+	} else {
+		app.Logger.Info("Database connection closed successfully")
+	}
 
-		// Close Redis connection
-		if err := internal.CloseRedis(); err != nil {
-			appContext.Logger.WithError(err).Error("Failed to close Redis connection")
-		} else {
-			appContext.Logger.Info("Redis connection closed successfully")
-		}
+	// Close Redis connection
+	if err := internal.CloseRedis(); err != nil {
+		app.Logger.WithError(err).Error("Failed to close Redis connection")
+	} else {
+		app.Logger.Info("Redis connection closed successfully")
+	}
 
-		appContext.Logger.Info("Application shutdown completed")
-	}()
+	app.Logger.Info("Application shutdown completed")
+
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.

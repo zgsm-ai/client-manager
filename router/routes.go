@@ -111,9 +111,8 @@ func setupAPIRoutes(r *gin.Engine, configController *controllers.ConfigControlle
 		logs := api.Group("/logs")
 		{
 			logs.POST("", logController.PostLog)
-			logs.GET("/client/:client_id", logController.GetLogsByClient)
-			logs.GET("/user/:user_id", logController.GetLogsByUser)
-			logs.GET("/stats", logController.GetLogStats)
+			logs.GET("", logController.ListLogs)
+			logs.GET("/:client_id/:file_name", logController.GetLogs)
 		}
 	}
 }

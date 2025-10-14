@@ -19,8 +19,8 @@ type Configuration struct {
 	Key         string         `json:"key" gorm:"index;not null"`
 	Value       string         `json:"value" gorm:"type:text"`
 	Description string         `json:"description" gorm:"type:text"`
-	CreatedAt   time.Time      `json:"created_at"`
-	UpdatedAt   time.Time      `json:"updated_at"`
+	CreatedAt   time.Time      `json:"created_at" gorm:"autoCreateTime"`
+	UpdatedAt   time.Time      `json:"updated_at" gorm:"autoUpdateTime"`
 	DeletedAt   gorm.DeletedAt `json:"deleted_at" gorm:"index"`
 }
 
@@ -38,8 +38,8 @@ type Feedback struct {
 	UserID         string    `json:"user_id" gorm:"index"`
 	Content        string    `json:"content" gorm:"type:text"`
 	Metadata       string    `json:"metadata" gorm:"type:text"`
-	CreatedAt      time.Time `json:"created_at"`
-	UpdatedAt      time.Time `json:"updated_at"`
+	CreatedAt      time.Time `json:"created_at" gorm:"autoCreateTime"`
+	UpdatedAt      time.Time `json:"updated_at" gorm:"autoUpdateTime"`
 }
 
 /**
@@ -50,15 +50,14 @@ type Feedback struct {
  * - Supports structured logging with module information
  */
 type Log struct {
-	ID         uint      `json:"id" gorm:"primaryKey"`
-	ClientID   string    `json:"client_id" gorm:"index;not null"`
-	UserID     string    `json:"user_id" gorm:"index"`
-	ModuleName string    `json:"module_name" gorm:"index"`
-	LogContent string    `json:"log_content" gorm:"type:text"`
-	StartFlag  bool      `json:"start_flag"`
-	EndFlag    bool      `json:"end_flag"`
-	CreatedAt  time.Time `json:"created_at"`
-	UpdatedAt  time.Time `json:"updated_at"`
+	ID          uint      `json:"id" gorm:"primaryKey"`
+	ClientID    string    `json:"client_id" gorm:"index;not null"`
+	UserID      string    `json:"user_id" gorm:"index"`
+	FileName    string    `json:"file_name" gorm:"index;not null"`
+	FirstLineNo int64     `json:"first_line_no"`
+	LastLineNo  int64     `json:"end_line_no"`
+	CreatedAt   time.Time `json:"created_at" gorm:"autoCreateTime"`
+	UpdatedAt   time.Time `json:"updated_at" gorm:"autoUpdateTime"`
 }
 
 /**

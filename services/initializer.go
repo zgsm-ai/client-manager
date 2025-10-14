@@ -55,10 +55,15 @@ func InitializeApp() (*AppContext, error) {
 	}
 
 	// Initialize Redis
-	redisClient, err := internal.InitRedis()
-	if err != nil {
-		logger.Warnf("Failed to initialize Redis: %v, continuing without Redis", err)
-		redisClient = nil
+	var redisClient *redis.Client
+	if internal.IsRedisEnabled() {
+		redisClient, err = internal.InitRedis()
+		if err != nil {
+			logger.Warnf("Failed to initialize Redis: %v, continuing without Redis", err)
+			redisClient = nil
+		}
+	} else {
+		logger.Warnf("Redis is disabled")
 	}
 
 	// Initialize Prometheus metrics
@@ -104,14 +109,13 @@ func InitializeApp() (*AppContext, error) {
  */
 func StartServer(r *gin.Engine, logger *logrus.Logger) error {
 	// Get port from configuration
-	port := internal.GetServerPort()
+	listenAddr := internal.GetListenAddr()
 
 	// Start server
-	serverAddr := fmt.Sprintf(":%s", port)
-	logger.Infof("Starting server on %s", serverAddr)
+	logger.Infof("Starting server on %s", listenAddr)
 
 	// Record startup time
 	utils.SetStartupTime(time.Now())
 
-	return r.Run(serverAddr)
+	return r.Run(listenAddr)
 }

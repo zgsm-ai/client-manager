@@ -29,7 +29,7 @@ var DB *gorm.DB
  */
 func InitDB() (*gorm.DB, error) {
 	// Get DSN from configuration
-	dsn := "client-manager.db" // Default DSN, should be from config
+	dsn := "./data/client-manager.db" // Default DSN, should be from config
 
 	// Configure GORM logger
 	newLogger := logger.New(

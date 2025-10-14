@@ -13,7 +13,6 @@ SHENMA_DOCKER_REPO  := $(shell grep '^SHENMA_DOCKER_REPO=' ./.env | cut -d '=' -
 SHENMA_DOCKER_HOST  := $(shell grep '^SHENMA_DOCKER_HOST=' ./.env | cut -d '=' -f 2-)
 SHENMA_DOCKER_USER  := $(shell grep '^SHENMA_DOCKER_USER=' ./.env | cut -d '=' -f 2-)
 SHENMA_DOCKER_PASSWORD := $(shell grep '^SHENMA_DOCKER_PASSWORD=' ./.env | cut -d '=' -f 2-)
-UPLOAD_GITHUB := "../upload-docker-images"
 
 #ENV := prod
 EXEEXT ?= 
@@ -35,23 +34,13 @@ docs:
 
 # 打镜像包
 package: 
-	docker build -t $(APP):$(VER) .
+	docker build --build-arg VERSION=$(VER) . -t zgsm/$(APP):$(VER)
 
 # 上传镜像包到dockerhub
 upload_dockerhub:
 	docker tag $(APP):$(VER) $(SHENMA_DOCKER_REPO)/$(APP):$(VER)
 	docker login $(SHENMA_DOCKER_HOST) -u $(SHENMA_DOCKER_USER) -p $(SHENMA_DOCKER_PASSWORD)
 	docker push $(SHENMA_DOCKER_REPO)/$(APP):$(VER)
-
-upload_github:
-	docker tag $(APP):$(VER) zgsm/$(APP):$(VER)
-	docker save -o $(APP)-$(VER).tar zgsm/$(APP):$(VER)
-	mv $(APP)-$(VER).tar $(UPLOAD_GITHUB)/images/
-	@echo -------TODO: upload image to dockerhub-------
-	@echo cd $(UPLOAD_GITHUB)
-	@echo git add images/$(APP)-$(VER).tar
-	@echo git commit -am \"upload zgsm/$(APP):$(VER)\"
-	@echo git push origin main
 
 # 上传镜像包到制品库和前置harbor
 upload: upload_dockerhub
