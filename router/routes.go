@@ -16,8 +16,6 @@ import (
 /**
  * Setup all routes for the application
  * @param {*gin.Engine} r - Gin engine
- * @param {*controllers.ConfigController} configController - Configuration controller
- * @param {*controllers.FeedbackController} feedbackController - Feedback controller
  * @param {*controllers.LogController} logController - Log controller
  * @param {*logrus.Logger} logger - Application logger
  * @description
@@ -29,7 +27,7 @@ import (
  * - Sets up Swagger documentation endpoint
  * - Sets up API routes
  */
-func SetupRoutes(r *gin.Engine, configController *controllers.ConfigController, feedbackController *controllers.FeedbackController, logController *controllers.LogController, logger *logrus.Logger) {
+func SetupRoutes(r *gin.Engine, logController *controllers.LogController, logger *logrus.Logger) {
 	// Add CORS middleware
 	r.Use(internal.CORSMiddleware())
 
@@ -49,7 +47,7 @@ func SetupRoutes(r *gin.Engine, configController *controllers.ConfigController, 
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	// Setup API routes
-	setupAPIRoutes(r, configController, feedbackController, logController)
+	setupAPIRoutes(r, logController)
 }
 
 // setupHealthCheckRoutes configures health check routes
@@ -74,39 +72,16 @@ func setupHealthCheckRoutes(r *gin.Engine, logger *logrus.Logger) {
 /**
  * Setup API routes for the application
  * @param {*gin.Engine} r - Gin engine
- * @param {*controllers.ConfigController} configController - Configuration controller
- * @param {*controllers.FeedbackController} feedbackController - Feedback controller
  * @param {*controllers.LogController} logController - Log controller
  * @description
  * - Sets up configuration API routes
  * - Sets up feedback API routes
  * - Sets up log API routes
  */
-func setupAPIRoutes(r *gin.Engine, configController *controllers.ConfigController, feedbackController *controllers.FeedbackController, logController *controllers.LogController) {
+func setupAPIRoutes(r *gin.Engine, logController *controllers.LogController) {
 	// Setup API routes
 	api := r.Group("/client-manager/api/v1")
 	{
-		// Configuration routes
-
-		configs := api.Group("/configurations")
-		{
-			configs.GET("", configController.GetConfigurations)
-			configs.GET("/:namespace", configController.GetNamespaceConfigurations)
-			configs.GET("/:namespace/:key", configController.GetSpecificConfiguration)
-		}
-
-		// Feedback routes
-		feedbacks := api.Group("/feedbacks")
-		{
-			feedbacks.POST("/completion", feedbackController.PostCompletionFeedback)
-			feedbacks.POST("/completions", feedbackController.PostBatchCompletionFeedback)
-			feedbacks.POST("/copy_code", feedbackController.PostCopyCodeFeedback)
-			feedbacks.POST("/evaluate", feedbackController.PostEvaluateFeedback)
-			feedbacks.POST("/use_code", feedbackController.PostUseCodeFeedback)
-			feedbacks.POST("/issue", feedbackController.PostIssueFeedback)
-			feedbacks.POST("/error", feedbackController.PostErrorFeedback)
-		}
-
 		// Log routes
 		logs := api.Group("/logs")
 		{

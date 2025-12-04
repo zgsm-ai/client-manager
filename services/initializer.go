@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/go-redis/redis/v8"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 
@@ -17,15 +16,10 @@ import (
 
 // AppContext holds all the core application objects
 type AppContext struct {
-	DB              *gorm.DB
-	Redis           *redis.Client
-	Logger          *logrus.Logger
-	ConfigDAO       *dao.ConfigDAO
-	FeedbackDAO     *dao.FeedbackDAO
-	LogDAO          *dao.LogDAO
-	ConfigService   *ConfigService
-	FeedbackService *FeedbackService
-	LogService      *LogService
+	DB         *gorm.DB
+	Logger     *logrus.Logger
+	LogDAO     *dao.LogDAO
+	LogService *LogService
 }
 
 // InitializeApp initializes all core application objects and returns AppContext
@@ -54,42 +48,21 @@ func InitializeApp() (*AppContext, error) {
 		return nil, fmt.Errorf("failed to initialize database: %v", err)
 	}
 
-	// Initialize Redis
-	var redisClient *redis.Client
-	if internal.IsRedisEnabled() {
-		redisClient, err = internal.InitRedis()
-		if err != nil {
-			logger.Warnf("Failed to initialize Redis: %v, continuing without Redis", err)
-			redisClient = nil
-		}
-	} else {
-		logger.Warnf("Redis is disabled")
-	}
-
 	// Initialize Prometheus metrics
 	internal.InitMetrics()
 
 	// Initialize DAOs
-	configDAO := dao.NewConfigDAO(db, redisClient, logger)
-	feedbackDAO := dao.NewFeedbackDAO(db, logger)
 	logDAO := dao.NewLogDAO(db, logger)
 
 	// Initialize services
-	configService := NewConfigService(configDAO, logger)
-	feedbackService := NewFeedbackService(feedbackDAO, logger)
 	logService := NewLogService(logDAO, logger)
 
 	// Create and return app context
 	appContext := &AppContext{
-		DB:              db,
-		Redis:           redisClient,
-		Logger:          logger,
-		ConfigDAO:       configDAO,
-		FeedbackDAO:     feedbackDAO,
-		LogDAO:          logDAO,
-		ConfigService:   configService,
-		FeedbackService: feedbackService,
-		LogService:      logService,
+		DB:         db,
+		Logger:     logger,
+		LogDAO:     logDAO,
+		LogService: logService,
 	}
 
 	return appContext, nil

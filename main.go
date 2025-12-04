@@ -66,20 +66,13 @@ var rootCmd = &cobra.Command{
 		}
 
 		// Initialize controllers
-		configController := controllers.NewConfigController(app.Logger)
-		configController.SetConfigService(app.ConfigService)
-
-		feedbackController := controllers.NewFeedbackController(app.Logger)
-		feedbackController.SetFeedbackService(app.FeedbackService)
-
-		logController := controllers.NewLogController(app.Logger)
-		logController.SetLogService(app.LogService)
+		logController := controllers.NewLogController(app.Logger, app.LogService)
 
 		// Create Gin engine
 		r := gin.Default()
 
 		// Setup all routes
-		router.SetupRoutes(r, configController, feedbackController, logController, app.Logger)
+		router.SetupRoutes(r, logController, app.Logger)
 
 		// Start server
 		if err := services.StartServer(r, app.Logger); err != nil {
@@ -96,10 +89,10 @@ func init() {
 // gracefulShutdown sets up graceful shutdown handlers
 /**
 * Setup graceful shutdown handlers
-* @param {*services.AppContext} app - Application context containing database and Redis connections
+* @param {*services.AppContext} app - Application context containing database connection
 * @description
 * - Sets up signal handlers for SIGINT and SIGTERM
-* - Closes database and Redis connections gracefully
+* - Closes database connection gracefully
 * - Logs shutdown process
  */
 func gracefulShutdown(app *services.AppContext) {
@@ -110,13 +103,6 @@ func gracefulShutdown(app *services.AppContext) {
 		app.Logger.WithError(err).Error("Failed to close database connection")
 	} else {
 		app.Logger.Info("Database connection closed successfully")
-	}
-
-	// Close Redis connection
-	if err := internal.CloseRedis(); err != nil {
-		app.Logger.WithError(err).Error("Failed to close Redis connection")
-	} else {
-		app.Logger.Info("Redis connection closed successfully")
 	}
 
 	app.Logger.Info("Application shutdown completed")

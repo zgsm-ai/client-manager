@@ -8,7 +8,6 @@ import (
 // Config holds the application configuration
 type Config struct {
 	ListenAddr string
-	NoRedis    bool
 	ConfigPath string
 }
 
@@ -18,7 +17,6 @@ var AppConfig = &Config{}
 func InitFlags(rootCmd *cobra.Command) error {
 	// Add command line flags
 	rootCmd.Flags().StringVarP(&AppConfig.ListenAddr, "listen", "l", "", "Server listen address (e.g. :8080)")
-	rootCmd.Flags().BoolVar(&AppConfig.NoRedis, "no-redis", false, "Disable Redis cache")
 	rootCmd.Flags().StringVarP(&AppConfig.ConfigPath, "config", "c", "", "Configuration file path")
 
 	return nil
@@ -47,10 +45,6 @@ func LoadConfig(configPath string) error {
 	// Set default values
 	viper.SetDefault("server.listen", ":8080")
 	viper.SetDefault("database.dsn", "./data/client-manager.db")
-	viper.SetDefault("redis.enabled", true)
-	viper.SetDefault("redis.addr", "localhost:6379")
-	viper.SetDefault("redis.password", "")
-	viper.SetDefault("redis.db", 0)
 	viper.SetDefault("log.level", "info")
 
 	// Enable environment variable override
@@ -73,11 +67,6 @@ func ApplyConfig() {
 	if AppConfig.ListenAddr != "" {
 		viper.Set("server.listen", AppConfig.ListenAddr)
 	}
-
-	// Override Redis settings if no-redis flag is set
-	if AppConfig.NoRedis {
-		viper.Set("redis.enabled", false)
-	}
 }
 
 func GetListenAddr() string {
@@ -86,9 +75,4 @@ func GetListenAddr() string {
 		port = ":8080"
 	}
 	return port
-}
-
-// IsRedisEnabled returns whether Redis is enabled in configuration
-func IsRedisEnabled() bool {
-	return !AppConfig.NoRedis && viper.GetBool("redis.enabled")
 }

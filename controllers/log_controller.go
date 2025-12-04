@@ -9,11 +9,13 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/sirupsen/logrus"
 
+	"github.com/zgsm-ai/client-manager/internal"
 	"github.com/zgsm-ai/client-manager/services"
 )
 
@@ -34,15 +36,13 @@ type LogController struct {
  * @param {logrus.Logger} log - Logger instance
  * @returns {*LogController} New LogController instance
  */
-func NewLogController(log *logrus.Logger) *LogController {
-	// Initialize DAOs and services here
-	logService := services.NewLogService(nil, log) // Will be properly initialized later
-
+func NewLogController(log *logrus.Logger, logService *services.LogService) *LogController {
 	return &LogController{
 		logService: logService,
 		log:        log,
 	}
 }
+
 func toString(v interface{}) string {
 	switch val := v.(type) {
 	case string:
@@ -100,6 +100,9 @@ func getUserId(header http.Header) string {
 // @Failure 500 {object} map[string]interface{} "Internal server error"
 // @Router /client-manager/api/v1/logs [post]
 func (lc *LogController) PostLog(c *gin.Context) {
+	// Record start time for metrics
+	start := time.Now()
+
 	// 获取上传的文件
 	file, fileHead, err := c.Request.FormFile("logfile")
 	if err != nil {
@@ -121,6 +124,9 @@ func (lc *LogController) PostLog(c *gin.Context) {
 		c.JSON(http.StatusForbidden, gin.H{"error": "userID is invalid"})
 		return
 	}
+
+	// Record logs received metrics
+	internal.RecordLogsReceived(args.ClientID, "upload")
 
 	if _, err := lc.logService.CreateLog(context.Background(), &args); err != nil {
 		lc.handleError(c, err)
@@ -147,6 +153,10 @@ func (lc *LogController) PostLog(c *gin.Context) {
 		return
 	}
 
+	// Record successful log upload metrics
+	duration := time.Since(start)
+	internal.RecordHTTPRequest("POST", "/client-manager/api/v1/logs", http.StatusOK, duration)
+
 	// 返回成功响应
 	c.JSON(http.StatusOK, gin.H{
 		"code":    "success",
@@ -168,14 +178,24 @@ func (lc *LogController) PostLog(c *gin.Context) {
 // @Failure 500 {object} map[string]interface{} "Internal server error"
 // @Router /client-manager/api/v1/logs/{client_id}/{file_name} [get]
 func (lc *LogController) GetLogs(c *gin.Context) {
+	// Record start time for metrics
+	start := time.Now()
+
 	clientID := c.Param("client_id")
 	fileName := c.Param("file_name")
+
+	// Record logs received metrics for retrieval
+	internal.RecordLogsReceived(clientID, "retrieve")
 
 	filePath, err := lc.logService.GetLogs(c.Request.Context(), clientID, fileName)
 	if err != nil {
 		lc.handleError(c, err)
 		return
 	}
+
+	// Record successful log retrieval metrics
+	duration := time.Since(start)
+	internal.RecordHTTPRequest("GET", "/client-manager/api/v1/logs/"+clientID+"/"+fileName, http.StatusOK, duration)
 
 	c.File(filePath)
 }
@@ -193,6 +213,9 @@ func (lc *LogController) GetLogs(c *gin.Context) {
 // @Failure 500 {object} map[string]interface{} "Internal server error"
 // @Router /client-manager/api/v1/logs [get]
 func (lc *LogController) ListLogs(c *gin.Context) {
+	// Record start time for metrics
+	start := time.Now()
+
 	// Get query parameters
 	var args services.ListLogsArgs
 	if err := c.ShouldBindQuery(&args); err != nil {
@@ -202,12 +225,22 @@ func (lc *LogController) ListLogs(c *gin.Context) {
 		})
 		return
 	}
+
+	// Record logs received metrics for listing
+	if args.ClientId != "" {
+		internal.RecordLogsReceived(args.ClientId, "list")
+	}
+
 	// Get log statistics
 	logs, paging, err := lc.logService.ListLogs(c.Request.Context(), &args)
 	if err != nil {
 		lc.handleError(c, err)
 		return
 	}
+
+	// Record successful log listing metrics
+	duration := time.Since(start)
+	internal.RecordHTTPRequest("GET", "/client-manager/api/v1/logs", http.StatusOK, duration)
 
 	// Return success response
 	c.JSON(http.StatusOK, gin.H{
@@ -255,15 +288,4 @@ func (lc *LogController) handleError(c *gin.Context, err error) {
 			"message": "Internal server error",
 		})
 	}
-}
-
-/**
- * SetLogService sets the log service (used for dependency injection)
- * @param {services.LogService} logService - Log service instance
- * @description
- * - Allows setting the log service after controller creation
- * - Used for proper dependency injection
- */
-func (lc *LogController) SetLogService(logService *services.LogService) {
-	lc.logService = logService
 }
